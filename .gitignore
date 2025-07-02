@@ -101,3 +101,5 @@ venv.bak/
 /data
 *.spacy
 /mnist
+
+Manifest.toml
