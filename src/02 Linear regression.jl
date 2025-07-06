@@ -146,3 +146,56 @@ plot(X.LStat, y, seriestype=:scatter, markershape=:circle, legend=false, size=(8
 plot!(Xnew.LStat, MLJ.predict(mach, Xnew), linewidth=3, color=:orange)
 
 # TODO HW : Find the best model by feature selection; best model means highest R²
+
+import Pkg; Pkg.add("Combinatorics")
+import Pkg; Pkg.add("MLJLinearModels")
+using Combinatorics
+
+function evaluate_model(X_subset, y, model)
+    mach = machine(model, X_subset, y)
+    fit!(mach)
+    ŷ = MLJ.predict(mach, X_subset)
+    return rsquared(ŷ, y)
+end
+
+# Test all possible feature combinations
+feature_names = names(X)
+n_features = length(feature_names)
+best_r2 = 0.0
+best_features = []
+
+println("Testing feature combinations...")
+
+# Test combinations of different sizes
+for subset_size in 1:n_features
+    println("Testing combinations of $(subset_size) features...")
+    
+    for combo in combinations(feature_names, subset_size)
+        X_subset = select(X, collect(combo))
+        r2 = evaluate_model(X_subset, y, model)
+        
+        if r2 > best_r2
+            best_r2 = r2
+            best_features = collect(combo)
+            println("New best: R² = $(round(r2, digits=4)) with features: $(join(combo, ", "))")
+        end
+    end
+end
+
+println("\n" * "="^50)
+println("BEST MODEL FOUND:")
+println("Features: $(join(best_features, ", "))")
+println("R²: $(round(best_r2, digits=6))")
+println("="^50)
+
+# Fit and display the final best model
+X_best = select(X, best_features)
+final_mach = machine(model, X_best, y)
+fit!(final_mach)
+
+fp = fitted_params(final_mach)
+println("\nCoefficients:")
+for (name, val) in fp.coefs
+    println("$(rpad(string(name), 12)): $(round(val, digits=4))")
+end
+println("$(rpad("Intercept", 12)): $(round(fp.intercept, digits=4))")

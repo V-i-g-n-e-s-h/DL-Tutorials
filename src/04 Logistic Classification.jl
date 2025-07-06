@@ -143,3 +143,41 @@ mode.(ŷ)
 
 
 #HW TODO - Evaluate your LogisticClassifier using 10-folds
+import Pkg; Pkg.add("MLJTuning")
+
+using MLJ
+using MLJTuning
+import RDatasets: dataset
+using DataFrames
+import MLJ: predict_mode
+
+# Load and prepare data
+smarket = dataset("ISLR", "Smarket")
+X = select(smarket, [:Lag1, :Lag2])
+y = coerce(smarket.Direction, OrderedFactor)
+
+# Load model
+@load LogisticClassifier pkg=MLJLinearModels
+
+# Define base model
+model = LogisticClassifier()
+
+# Wrap it in a TunedModel just for CV (no tuning actually happens)
+tm = TunedModel(
+    model = model,
+    resampling = CV(nfolds=5),
+    range = range(model, :lambda, lower=1e-3, upper=1.0),
+    measure = Accuracy(),
+    operation = predict_mode,
+    acceleration = CPUThreads()
+)
+
+# Train using all data (CV happens internally)
+mach = machine(tm, X, y)
+fit!(mach)
+
+# Best model and CV performance
+rpt = report(mach)
+println(rpt)
+# Optional: show best hyperparameters
+println("Best lambda: $(fitted_params(mach).best_model.lambda)")
